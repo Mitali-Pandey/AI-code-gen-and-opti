@@ -2,7 +2,6 @@ import ast
 import re
 import astor
 
-# ---------------- Syntax Error Detection ----------------
 def detect_syntax_errors(code, language):
     if not code.strip():
         return 'Please enter some code.'
@@ -30,12 +29,20 @@ def detect_syntax_errors(code, language):
                 line.startswith('while') or
                 line.startswith('for') or
                 line.startswith('else') or
-                'return' in line or
                 line.startswith('class') or
                 line.startswith('struct') or
                 line.startswith('namespace') or
+                line.startswith('public:') or
+                line.startswith('private:') or
+                line.startswith('protected:') or
                 line.startswith('//') or
-                line.startswith('/*')):
+                line.startswith('/*') or
+                line.startswith('using') or
+                'return' in line or
+                line.endswith(';') or  # Already has semicolon
+                line.endswith(':') or  # Class/struct/namespace declaration
+                line.endswith(')') or  # Function declaration
+                line.endswith('{')):   # Block start
                 continue
                 
             # Check for missing semicolon in statements
@@ -44,7 +51,10 @@ def detect_syntax_errors(code, language):
                 not line.endswith('{') and 
                 not line.endswith('}') and
                 not line.startswith('//') and
-                not line.startswith('/*')):
+                not line.startswith('/*') and
+                not line.endswith(':') and
+                not line.endswith(')') and
+                not line.endswith('{')):
                 errors.append(f'Line {i}: Missing semicolon')
         
         # Check for unmatched braces
@@ -58,6 +68,11 @@ def detect_syntax_errors(code, language):
             # Check for unterminated string literals
             if code.count('"') % 2 != 0:
                 errors.append('Unterminated string literal detected')
+            # Check for missing return type in function declarations
+            if re.search(r'\b(?:void|int|double|float|char|bool|string|vector|map|set|list|deque|queue|stack|priority_queue)\s+\w+\s*\([^)]*\)\s*\{', code):
+                pass  # Valid function declaration
+            elif re.search(r'\b\w+\s*\([^)]*\)\s*\{', code):
+                errors.append('Missing return type in function declaration')
         elif language == 'Java':
             if 'System.out.println' in code and 'public class' not in code:
                 errors.append('Missing class declaration')
@@ -127,7 +142,6 @@ def check_cpp_java_logic(code, language):
     
     return errors
 
-# helper function
 def is_variable_used(tree, var_name):
     for node in ast.walk(tree):
         if isinstance(node, ast.Name) and node.id == var_name and isinstance(node.ctx, ast.Load):
